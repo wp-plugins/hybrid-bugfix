@@ -1,67 +1,73 @@
-=== Hybrid Theme Bugfix Plugin ===
+=== Fix Disappearing Content in Themes ===
 Contributors: Angelo Mandato
-Tags: hybrid, theme, bug, fix
+Donate link:
+Tags: hybrid, theme, hybrid theme, bug, fix, disappearing, content, disappear, missing, lost
 Requires at least: 2.0
-Tested up to: 2.8.1
-Stable tag: 0.1
+Tested up to: 2.8.4
+Stable tag: 0.1.1
 
 
 == Description ==
-Fixes a bug in the Hybrid Theme that causes problems for some plugins. The bug is with the page meta description logic in the Hybrid theme and can be reproduced by going to the Theme > Hybrid Settings and turning on/off the "Use the excerpt on single posts for your meta description?" setting. The bug is caused by the developer calling the `get_the_excerpt()` function outside of the content loop. This plugin prevents the get_the_excerpt() call by the Hybrid theme to negatively impact the performance of your blog as well as prevent plugins from filtering the content when they are not supposed to. It also uses an improved description for the Hybrid meta description tag, the description does not end with a [...] if there are more than 55 words in the blog post.
+Fix Disappearing Content in Themes plugin fixes a bug found in some themes such as Hybrid based Themes where content and features added by plugins do not appear in the page's body area.
 
- = Details =
+If your site does not display content/features added by plugins, this plugin may fix the problem.
 
-The developer of the Hybrid Theme is insistent that his use of the `get_the_excerpt()` outside of the post loop is acceptable. WordPress.org clearly states that calls to `the_excerpt()` and `the_content()` must be within the loop. A call to `get_the_excerpt()` relies upon calling `get_the_content()` as well as applies `the_content` filter when the excerpt of a blog post is empty. All of this logic takes place in the wp_trim_excerpt function in `wp-includes/formatting.php`. Plugins that use filters for `get_the_excerpt`, `the_excerpt`, `get_the_content` and `the_content` can be negatively impacted by the Hybrid theme.
+This plugin prevents plugins from adding content to the page until after the `have_posts()` call is made by the theme.
 
-The excerpt documentation: [the_excerpt](http://codex.wordpress.org/Template_Tags/the_excerpt)
+ = Bug Details =
+The problem occurs with themes that call `the_excerpt()`, `get_the_excerpt()`, `the_content()`, or `get_the_content()` functions in places such as in the HTML head area, header area of the page, or in a sidebar to display a short description of the page's content. Because the function call is made outside of the main content area, plugins will add their content prematurely and thus not appear in the page.
 
-The Hybrid developer insists that plugin developers should call the in_the_loop() to double check that the excerpt/content filter is inside the page's content loop. Though this fixes the problem at the plugin level, it would require already coded plugins to accommodate the code in the Hybrid theme. This plugin fixes the problem for plugins that are no longer actively developed or are unaware that they need to add code to their plugin to accommodate the Hybrid theme.
+= Technical Explanation of Fix =
+This plugin removes the hooks to `get_the_excerpt()` during the init action and restores the hooks during the `loop_start` action. This is so the `get_the_excerpt` calls made outside of the content loop do not call the plugin filters for `get_the_excerpt`. A temporary `get_the_excerpt` hook is added between these actions by this plugin which returns a better formatted excerpt for the theme to use.
 
-This plugin removes the hooks to get_the_excerpt during the init action and restores the hooks during the loop_start action. This is so the `get_the_excerpt` call that the Hybrid theme makes during the wp_head action does not call the plugin filters for `get_the_excerpt`. A temporary `get_the_excerpt` hook is added between these actions by this plugin which returns a better formatted excerpt for the Hybrid theme to use.
+The excerpt provided to the theme is better suited for excerpt use either in the page body or as content in a header meta description tag. The logic in this plugin removes the [...] which is added by WordPress when there are more than 55 words in the excerpt.
 
-The excerpt provided to the Hybrid theme is better suited for the meta description tag. The logic in this plugin removes the [...] which is added by the `wp_trim_excerpt` function when there are more than 55 words in the excerpt. The additional [...] to the end of a meta description serves no purpose for SEO.
-
- 
 == Frequently Asked Questions ==
 
  = Why the plugin? =
- The developer of the Hybrid theme system is insistent that there is no bug with how his plugin obtains the excerpt for the meta description tag. In so many words the Hybrid theme developer told me he could care less about my plugin working with the Hybrid theme. Since he will not implement a fix, I've written this plugin to fix the bug for anyone having the same problem with plugins and their Hybrid theme.
+ The developer of the Hybrid theme system did not agree with me that he should not be calling `get_the_excerpt()` outside of the content loop. The theme developer was un-cooperative and in so many words told me he could care less about my plugin working with the Hybrid theme. Left with solving the problem in my own plugin, I coded the solution found in this plugin. After testing, I discovered this plugin also fixed the same problem with other plugins and the Hybird Theme system. Since this code could fix problems for other plugins as well as mine, I decided to release it as a separate plugin.
  
- If/when the Hybrid Theme developer implements the patch (or one like it) documented below then this plugin will become obsolete.
+ = Why is this a bug in themes? =
+ WordPress.org clearly states that calls to `the_excerpt()` and `the_content()` must be within the loop. A call to `get_the_excerpt()` relies upon calling `get_the_content()` as well as applies `the_content` filter when the excerpt of a blog post is empty. All of this logic takes place in the `wp_trim_excerpt()` function in `wp-includes/formatting.php`. Plugins that use filters for `get_the_excerpt`, `the_excerpt`, `get_the_content` and    `the_content` can be negatively impacted by themes that incorrectly call these functions outside of the content loop.
+
+The excerpt documentation: [the_excerpt](http://codex.wordpress.org/Template_Tags/the_excerpt)
+
+ = I developed a theme where I call `get_the_excerpt()` outside of the content loop. Is there another way I can get the excerpt without messing up the output of plugins? =
  
- = What's the Patch for the Hybrid Theme? =
- 
- To fix the bug in the Hybrid theme, edit the `library/functions/framework.php` file with your favorite text editor and go to line 185 (line number may change with future releases of the Hybird theme).
+Yes. First, do not call `the_excerpt()`, `get_the_excerpt()`, `the_content()` or `get_the_content()` outside of the content loop. If you do need the excerpt, the most efficient way to get the excerpt or the content is to obtain it directly from the global $post object. The advantage of obtaining the content or the excerpt from the global post object is that you do not have to worry about WordPress cutting the string length at 55 words, adding an undesired [...] to the end of the excerpt, and you can brag that your theme is efficient in that it does not require WordPress to iterate through additional filters which can be process intensive and use precious system memory.
 
-Replace:
-
-`		$meta_desc = get_the_excerpt();`
-
-With:
+Below is an example function you can add to your theme's functions.php and call when you want to obtain the excerpt outside of the content loop.
 
 `
-		$meta_desc = $post->post_excerpt;
-		if( $meta_desc == '' )
-		{
-			$meta_desc = $post->post_content;
-
-			$meta_desc = strip_shortcodes( $meta_desc );
-			$meta_desc = str_replace(']]>', ']]&gt;', $meta_desc);
-			$meta_desc = strip_tags($meta_desc);
-			$excerpt_length = apply_filters('excerpt_length', 55);
-			$words = explode(' ', $meta_desc, $excerpt_length + 1);
-			if (count($words) > $excerpt_length) {
-				array_pop($words);
-				$meta_desc = implode(' ', $words);
-			}
-		}
+function mythemename_get_the_excerpt($excerpt_word_count=55)
+{
+    global $post;
+    $excerpt = $post->post_excerpt;
+    if( $excerpt == '' )
+    {
+        $excerpt = $post->post_content;
+        $excerpt = strip_shortcodes( $excerpt );
+        $excerpt = str_replace(']]>', ']]&gt;', $excerpt);
+        $excerpt = strip_tags($excerpt);
+    }
+    $words = explode(' ', $excerpt, $excerpt_word_count + 1);
+    if (count($words) > $excerpt_length) {
+        array_pop($words);
+        $excerpt = implode(' ', $words);
+    }
+    return $excerpt;
+}
 `
-You no longer need this plugin if you implement this patch to your Hybrid theme.
 
+The description may be obtained simply by referring to the $post object.
+
+`
+ echo $post->post_content;
+`
 
 == Installation ==
 1. Copy the entire directory from the downloaded zip file into the /wp-content/plugins/ folder.
-2. Activate the "Hybrid Theme Bugfix" plugin in the Plugin Management page.
+2. Activate the "Fix Disappearing Content in Themes" plugin in the Plugin Management page.
 3. Test your site that everything still works as expected.
 
 
@@ -71,8 +77,13 @@ No screenshots needed.
 
 == Changelog ==
 
-0.1 released on 07/18/2009
-Initial release of Hybrid Theme Bugfix plugin
+= 0.1.1 =
+* Released on 09/28/2009
+* Renamed the plugin to 'Fix Disappearing Content in Themes' plugin since this plugin fixes the bug in other themes as well as the Hybrid Theme system.
+
+= 0.1 =
+* Released on 07/18/2009
+* Initial release of Hybrid Theme Bugfix plugin
 
 
 == Contributors ==

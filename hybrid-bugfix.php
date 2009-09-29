@@ -1,9 +1,9 @@
 <?php
 /*
-Plugin Name: Hybrid Theme Bugfix
+Plugin Name: Fix Disappearing Content in Themes
 Plugin URI: http://www.wordpress.org/extend/plugins/hybrid-bugfix/
-Description: Fixes a bug in the Hybrid Theme that causes problems for some plugins. The bug is with the page meta description logic in the Hybrid theme and can be reproduced by going to the Theme > Hybrid Settings and turning on/off the "Use the excerpt on single posts for your meta description?" setting. The bug is caused by the developer calling the `get_the_excerpt()` function outside of the content loop. This plugin prevents the get_the_excerpt() call by the Hybrid theme to negatively impact the performance of your blog as well as prevent plugins from filtering the content when they are not supposed to. It also uses an improved description for the Hybrid meta description tag, the description does not end with a [...] if there are more than 55 words in the blog post.
-Version: 0.1
+Description: Fix Disappearing Content in Themes plugin fixes a bug found in some themes such as Hybrid based Themes where content and features added by plugins do not appear in the page's body area.
+Version: 0.1.1
 Author: Angelo Mandato
 Author URI: http://angelo.mandato.com/
 
